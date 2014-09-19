@@ -1,0 +1,118 @@
+---
+title: "ML - Prediction Assignment"
+author: "Roozbeh Davari"
+output: html_document
+---
+```{r setup, message = F, warning=FALSE}
+```
+
+## Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this analysis, we use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants to predict the manner in which the exercise is done.
+
+## Data 
+
+The training data for this study are available here: 
+
+[https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv)
+
+The data for this project come from this source: [http://groupware.les.inf.puc-rio.br/har](http://groupware.les.inf.puc-rio.br/har) which is a result of the following study:
+
+Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.
+
+
+## Processing Data
+
+First, we download and load the datasets.
+
+```{r cache=TRUE}
+download.file('https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv','training.csv','curl')
+training <- read.csv('training.csv')
+test <- read.csv('test.csv')
+dim(training); 
+```
+
+The size of the training dataset is rather large. We explore the properties of different columns (i.e. potential predictors) and remove the columns with high fraction of missing values; more than 95% missing values. 
+
+```{r}
+# Counting the number of missing values
+count.NAs <- sapply(training,function(x) sum(is.na(x)))
+
+# Finding the columns that have more than 95% missing values
+index.NAs <- c()
+for (i in 1:length(count.NAs)) {
+   if (count.NAs[[i]]/dim(training)[1] >= 0.9)
+     {index.NAs <- append(index.NAs,i)}
+  }
+
+# Removing the variables with more than 95% missing values
+training <- training[,-index.NAs]
+dim(training)
+```
+
+With this approach, we have been able to remove 33 variables. Therefore, we still have 127 potential predictors.
+
+Next, by using caret package, we look at the variability of each variable. We use nearZeroVar which diagnoses predictors that have one unique value (i.e. are zero variance predictors) or predictors that are have both of the following characteristics: they have very few unique values relative to the number of samples and the ratio of the frequency of the most common value to the frequency of the second most common value is large.
+
+We eliminate the predictors with near zero variance. 
+
+```{r message = F}
+library(caret)
+near0 <- nearZeroVar(training,saveMetrics = T)
+training <- training[,near0$nzv == FALSE]
+dim(training)
+```
+
+Another 68 predictors are eliminated and the size of training set is more manageable with remaining 59 predictors.
+
+Now, we can look at individual variables and decide whether or not they are add any useful information for building our prediction model. 
+
+The observation ID , also user's name are not needed for building a prediction model and therefore we eliminate them. Furthermore, the provided information about the date are unlikely to contribute to our prediction as it seems that it merely indicates the date of performed observation. As a result, those are removed, too.
+
+```{r}
+training <- training[,-c(1,2,3,4,5)]
+dim(training)
+```
+
+
+## Creating Training and Cross-Validation Subsets
+
+Now, we create a training and testing subset in order to build our prediction model. We pick 5,000 random observations for training and 1,000 random observations for cross-validation. 
+
+```{r}
+trainSub <- training[sample(nrow(training), 5000), ]
+testSub <- training[sample(nrow(training), 1000), ]
+```
+
+## Training
+
+We use 'gbm' method for building our predictive model which fits generalized boosted regression models. This method is one of the most powerful and popular models for building prediction algorithm. 
+
+
+```{r cache=TRUE}
+gbmGrid <-  expand.grid(interaction.depth = 5,
+                        n.trees = 300,
+                        shrinkage = 0.1)
+modelFit <- train(classe ~ .,method="gbm",data=trainSub,tuneGrid=gbmGrid,verbose=F)
+```
+
+
+## Accuracy
+
+We use confusion matrix to find the accuracy of our model fit.
+
+```{r message = F, cache=TRUE}
+confusionMatrix(testSub$classe,predict(modelFit,testSub))
+```
+
+It can be seen that this method is very robust and the overall accuracy is more than 99%.
+
+## Prediction on TEST sample
+
+Finally, we predict the manner in which the exercise is done (i.e. 'classe' factor) for the provided TEST sample.
+
+```{r}
+predict(modelFit,test)
+```
+
+Sumsitting these results, confirmed that all the predictions on the test sample are correct.
