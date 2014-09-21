@@ -162,19 +162,6 @@ modelFit &lt;- train(classe ~ .,method=&quot;gbm&quot;,data=trainSub,tuneGrid=gb
 <h2>Prediction on TEST sample</h2>
 <p>Finally, we predict the manner in which the exercise is done (i.e. ‘classe’ factor) for the provided TEST sample.</p>
 <pre class="r"><code>predict(modelFit,test)</code></pre>
-<pre><code>## Loading required package: gbm
-## Loading required package: survival
-## Loading required package: splines
-## 
-## Attaching package: 'survival'
-## 
-## The following object is masked from 'package:caret':
-## 
-##     cluster
-## 
-## Loading required package: parallel
-## Loaded gbm 2.1
-## Loading required package: plyr</code></pre>
 <pre><code>##  [1] B A B A A E D B A A B C B A E E A B B B
 ## Levels: A B C D E</code></pre>
 <p>Sumsitting these results, confirmed that all the predictions on the test sample are correct.</p>

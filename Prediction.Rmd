@@ -111,7 +111,7 @@ It can be seen that this method is very robust and the overall accuracy is more 
 
 Finally, we predict the manner in which the exercise is done (i.e. 'classe' factor) for the provided TEST sample.
 
-```{r}
+```{r message = F}
 predict(modelFit,test)
 ```
 
