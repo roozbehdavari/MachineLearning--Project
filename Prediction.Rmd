@@ -1,5 +1,5 @@
 ---
-title: "ML - Prediction Assignment"
+title: "Predicting the Type of Physical Exercise"
 author: "Roozbeh Davari"
 output: html_document
 ---
@@ -28,17 +28,17 @@ First, we download and load the datasets.
 ```{r cache=TRUE}
 download.file('https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv','training.csv','curl')
 training <- read.csv('training.csv')
-test <- read.csv('test.csv')
+unkonw.activities <- read.csv('test.csv')
 dim(training); 
 ```
 
-The size of the training dataset is rather large. We explore the properties of different columns (i.e. potential predictors) and remove the columns with high fraction of missing values; more than 95% missing values. 
+The size of the training dataset is rather large. We explore the properties of different columns (i.e. potential predictors) and remove the columns with high fraction of missing values (i.e., have more than 90% missing values.) 
 
 ```{r}
 # Counting the number of missing values
 count.NAs <- sapply(training,function(x) sum(is.na(x)))
 
-# Finding the columns that have more than 95% missing values
+# Finding the columns that have more than 90% missing values
 index.NAs <- c()
 for (i in 1:length(count.NAs)) {
    if (count.NAs[[i]]/dim(training)[1] >= 0.9)
@@ -50,22 +50,21 @@ training <- training[,-index.NAs]
 dim(training)
 ```
 
-With this approach, we have been able to remove 33 variables. Therefore, we still have 127 potential predictors.
+With this approach, we have been able to remove 33 variables. There are still 127 potential predictors.
 
-Next, by using caret package, we look at the variability of each variable. We use nearZeroVar which diagnoses predictors that have one unique value (i.e. are zero variance predictors) or predictors that are have both of the following characteristics: they have very few unique values relative to the number of samples and the ratio of the frequency of the most common value to the frequency of the second most common value is large.
+By using caret package, we look at the variability of each variable. We use nearZeroVar which diagnoses predictors that have one unique value (i.e. are zero variance predictors) or predictors that are have both of the following characteristics: they have very few unique values relative to the number of samples and the ratio of the frequency of the most common value to the frequency of the second most common value is large.
 
 We eliminate the predictors with near zero variance. 
 
 ```{r message = F}
 library(caret)
 near0 <- nearZeroVar(training,saveMetrics = T)
+head(near0)
 training <- training[,near0$nzv == FALSE]
-dim(training)
+dim(training); names(training)
 ```
 
-Another 68 predictors are eliminated and the size of training set is more manageable with remaining 59 predictors.
-
-Now, we can look at individual variables and decide whether or not they are add any useful information for building our prediction model. 
+Another 68 predictors are eliminated and the size of training set is more manageable with remaining 59 predictors. We can now look at individual variables and decide whether or not they potentially can add any useful information for building our prediction model. 
 
 The observation ID , also user's name are not needed for building a prediction model and therefore we eliminate them. Furthermore, the provided information about the date are unlikely to contribute to our prediction as it seems that it merely indicates the date of performed observation. As a result, those are removed, too.
 
@@ -75,44 +74,47 @@ dim(training)
 ```
 
 
-## Creating Training and Cross-Validation Subsets
+## Creating Training and Testing Subsets
 
-Now, we create a training and testing subset in order to build our prediction model. We pick 5,000 random observations for training and 1,000 random observations for cross-validation. 
+We create a training and testing subset in order to build our prediction model. We pick 5,000 random observations for training and 1,500 random observations for cross-validation. 
 
 ```{r}
 trainSub <- training[sample(nrow(training), 5000), ]
-testSub <- training[sample(nrow(training), 1000), ]
+testSub <- training[sample(nrow(training), 1500), ]
 ```
 
 ## Training
 
-We use 'gbm' method for building our predictive model which fits generalized boosted regression models. This method is one of the most powerful and popular models for building prediction algorithm. 
+We use two different methods for building our prediction models; random forests and boosted regression models. These methods are two of the most powerful and popular models for building prediction algorithm. We compare the results obtained from both methods to get a sense of the predictions robustness. 
 
 
 ```{r cache=TRUE}
-gbmGrid <-  expand.grid(interaction.depth = 5,
-                        n.trees = 300,
-                        shrinkage = 0.1)
-modelFit <- train(classe ~ .,method="gbm",data=trainSub,tuneGrid=gbmGrid,verbose=F)
+gbm.modelFit <- train(classe ~ .,method="gbm",data=trainSub,verbose=F)
+rf.modelFit <- train(classe ~ .,method="rf",data=trainSub,verbose=F)
 ```
 
 
 ## Accuracy
 
-We use confusion matrix to find the accuracy of our model fit.
+We use confusion matrix to find the accuracy of our model fits.
 
 ```{r message = F, cache=TRUE}
-confusionMatrix(testSub$classe,predict(modelFit,testSub))
+confusionMatrix(testSub$classe,predict(gbm.modelFit,testSub))
+confusionMatrix(testSub$classe,predict(rf.modelFit,testSub))
 ```
 
-It can be seen that this method is very robust and the overall accuracy is more than 99%.
+It can be seen that both methods have very high accuracy with random Forrest having slightly higher accuracy. 
 
-## Prediction on TEST sample
+## Prediction on the unknown sample
 
-Finally, we predict the manner in which the exercise is done (i.e. 'classe' factor) for the provided TEST sample.
+Finally, we predict the manner in which the exercise is done (i.e. 'classe' factor) for the a sample with unknown activities.
 
-```{r message = F}
-predict(modelFit,test)
+
+```{r}
+predict(gbm.modelFit,unkonw.activities)
+predict(rf.modelFit,unkonw.activities)
 ```
 
-Sumsitting these results, confirmed that all the predictions on the test sample are correct.
+They return identical results which is reassuring.
+
+

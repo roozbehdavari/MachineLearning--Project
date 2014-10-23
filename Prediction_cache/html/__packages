@@ -4,4 +4,5 @@ gbm
 ggplot2
 lattice
 plyr
+randomForest
 survival
